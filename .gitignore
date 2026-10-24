@@ -1,0 +1,33 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets - never commit these
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials*.json
+service-account*.json
+
+# Real customer data. raw/ holds bank statements, customer names and scanned
+# receipts for real people. It must never leave this machine.
+raw/
+*.xlsx
+*.xlsm
+*.pdf
+*.extracted.json
+
+# Bundled third-party binaries (the Windows installer downloads poppler)
+vendor/
+
+# Local noise
+*.local
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+tmp/

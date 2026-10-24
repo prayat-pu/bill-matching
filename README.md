@@ -1,0 +1,170 @@
+# Bill Reconciliation Center
+
+Upload scanned receipts, the accounting report and the bank statement; get back
+one Excel workbook that says which bill was paid, which needs a look, and which
+has no receipt at all.
+
+Rebuilt from the Python/Streamlit tool described in `REBUILD_NOTES.md`.
+
+## What it does
+
+1. Reads every page of the receipt PDFs with Gemini (handwritten payment time,
+   printed document number, amount, which bank checkbox is ticked).
+2. Joins each receipt to the accounting report on the document number
+   (`เลขที่เอกสาร`) and adds the handwritten time to the line.
+3. Finds the matching bank deposit: within **±2 minutes** of that time, same
+   amount, and - where the statement names a payer - the same person. One
+   deposit can only pay one bill.
+4. Writes the workbook:
+   - **`Matching Report`** - the accounting report as uploaded, with `time`,
+     `match_bill_status` and `note` inserted as columns B, C and D. The status
+     is a dropdown - `ยอดตรง` green, `ตรวจสอบข้อมูล` yellow, `ขาดบิล` red,
+     `ยกเลิกบิล` orange - colored by rule, so it recolors when you re-pick.
+     Straight under the data, a `รวม` row `=SUM`s every money column (the
+     meter-reading columns are left alone). Then one blank row, then a summary
+     block lined up under `รวมสุทธิ`: one `SUMIF` per charge type on the
+     document-number prefix, then `ยอดรวม` → `ยกเลิกบิล` → `ยอดสุทธิ`. The year
+     in each pattern (`RA2026*`) is read from the document numbers in the
+     sheet, and a report straddling a year end totals both years.
+   - **`add-statement`** - the bank statement as uploaded, with `bill_id` as
+     column B.
+
+`ยกเลิกบิล` is the one status the app never sets by itself: mark a row with it
+and the cancelled line and `ยอดสุทธิ` update inside Excel, with no re-run.
+
+Notes written into the `note` column:
+
+| Note | Means |
+|---|---|
+| `ยอดเงินในบิลกับยอดเงินสุทธิไม่สอดคล้องกัน` | the receipt's own total disagrees with `รวมสุทธิ` |
+| `ยอดเงินตรงแต่ชื่อผู้โอนไม่ตรง` | right amount, but the transfer is in another name (often a company) |
+
+## Requirements
+
+- Node 24+
+- `pdftoppm` — `sudo apt install poppler-utils`
+- A Gemini API key in `.env` at the repo root (see `.env.example`):
+
+```
+GEMINI_API_KEY=...
+# GEMINI_MODEL=gemini-3.8-flash
+```
+
+The key is read by the server only. It never reaches the browser.
+
+## Run
+
+```bash
+npm install
+npm run dev          # API on :5174, web on :5173
+```
+
+Open http://localhost:5173, pick the company, drop in the three files, press
+เริ่มกระทบยอด, then watch the steps: upload → read the Excel files → turn the
+PDF into images → read the receipts with AI → match → build the workbook. The
+AI step is the long one, roughly 5 s a page, and the page shows the page
+counter, elapsed time and an estimate. Then download the workbook.
+
+## Deploy with Docker
+
+One image: Fastify serves both the API and the built React page, so there is
+nothing else to run.
+
+```bash
+docker compose up -d --build     # http://localhost:5174
+docker compose logs -f
+docker compose down
+```
+
+`docker-compose.yml` reads `.env` from the repo root, so `GEMINI_API_KEY` must
+be there. The key stays inside the container.
+
+The container runs read-only with a tmpfs on `/tmp` - the only thing written is
+the private temp directory used while a PDF page is rasterized, and it is
+deleted as soon as the model has read the page. Nothing else is persisted, so
+the container can be killed and replaced at any time; a run in flight is lost
+and has to be started again.
+
+To change the port, set `PORT` in `docker-compose.yml` and map it:
+
+```yaml
+    environment:
+      PORT: 8080
+    ports:
+      - "8080:8080"
+```
+
+Without compose:
+
+```bash
+docker build -t bill-matching .
+docker run --rm -p 5174:5174 --env-file .env -e HOST=0.0.0.0 bill-matching
+```
+
+## Deploy on Windows
+
+Windows 7 cannot host this - Node 24 needs Windows 10 or newer. Run it on one
+Windows 10/11 PC and let the other machines (Windows 7 included) open it in a
+browser. Step-by-step, with the `.cmd` files: [`deploy/windows/README.md`](deploy/windows/README.md).
+
+The page is built for Chrome 109 / Firefox 115 ESR, the last versions that run
+on Windows 7.
+
+## Other commands
+
+```bash
+npm test             # core, workbook and extract suites
+npm run typecheck
+npm run extract      # read every PDF in ./raw into raw/extracted/*.json
+npm run dry-run -- <report.xlsx> <statement.xlsx> <extracted.json>
+npm run build        # production build of the web app
+```
+
+`dry-run` is the fastest way to check the matching rules without the UI or a
+second trip to the model.
+
+### About `raw/`
+
+`raw/` is where the real files live: the accounting report, the bank statement
+and the scanned receipts. It is **git-ignored** — it holds customers' names,
+the company's account number and hundreds of real transfers, and none of that
+belongs on a server. A fresh clone therefore has no `raw/`, and the tests that
+read it (`packages/core/test/raw-files.test.ts`,
+`packages/workbook/test/build.test.ts`, `packages/extract/test/phases.test.ts`)
+skip themselves. Put your own files in `raw/` and they run.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `packages/core` | parsing, name matching, the reconciliation engine |
+| `packages/extract` | PDF → upright JPEG → Gemini → receipt records |
+| `packages/workbook` | the two-sheet ExcelJS output |
+| `apps/server` | Fastify API: upload, progress (SSE), download |
+| `apps/web` | React + Vite single page |
+| `deploy/windows` | installer and start scripts for a Windows host |
+| `raw/` | your own report / statement / receipts — git-ignored |
+| `scripts/` | `dev.ts`, `dry-run.ts` |
+
+Nothing is stored between runs. Uploads live in memory, the workbook lives in
+the job for 30 minutes, and the rendered page images are deleted as soon as the
+model has read them.
+
+## Known weak spots
+
+- **Which bank checkbox is ticked.** Two Gemini models disagreed on 4 of 20
+  receipts in the sample. The UI lists every receipt the model was unsure about.
+- **Thai vs Latin names.** `เตชิต` on the report and `DECHIT` on the transfer
+  are the same person, but the name rule cannot see that, so the line passes
+  with the name-mismatch note. Same for spelling variants (`อนุพงษ์` /
+  `อนุพงศ์`).
+- **Handwritten times.** They are what the whole deposit match hangs on. A
+  misread digit moves the line to `ตรวจสอบข้อมูล`, never to a wrong deposit.
+- **Page rotation is fixed, not detected.** Pages are turned 270° because that
+  is how these scans come off the phone. A batch photographed the other way up
+  reads badly; pass `--rotate 0|90|180` to `npm run extract`, or say so and the
+  renderer can be taught to retry the other angles when a page comes back
+  unreadable.
+- **A misread document number** shows up as two receipts claiming one bill.
+  That is caught: both lines go to `ตรวจสอบข้อมูล` with a note, and the UI
+  lists the duplicate.

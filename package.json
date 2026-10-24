@@ -1,0 +1,18 @@
+{
+  "name": "bill-matching",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "node --experimental-strip-types scripts/dev.ts",
+    "start": "npm run start -w @bill/server",
+    "build": "npm run build -w @bill/web",
+    "test": "vitest run --root packages/core && vitest run --root packages/workbook && vitest run --root packages/extract",
+    "typecheck": "npm run typecheck -w @bill/core && npm run typecheck -w @bill/workbook && npm run typecheck -w @bill/extract && npm run typecheck -w @bill/server && npm run typecheck -w @bill/web",
+    "extract": "npm run extract -w @bill/extract --",
+    "dry-run": "node --experimental-strip-types scripts/dry-run.ts"
+  }
+}
