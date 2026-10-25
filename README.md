@@ -149,6 +149,18 @@ browser. Step-by-step, with the `.cmd` files: [`deploy/windows/README.md`](deplo
 The page is built for Chrome 109 / Firefox 115 ESR, the last versions that run
 on Windows 7.
 
+## On a tablet or phone
+
+The page is fluid: one upload card per row on a phone, two on an iPad in
+portrait, three on a laptop. Buttons are 44px tall on touch screens, the
+`.xlsx` pickers offer the media type as well as the extension so iOS does not
+grey the files out, and `safari15` is in the build target (iPadOS 15+; below
+that, flex `gap` is missing and cannot be polyfilled).
+
+Dragging files onto the cards is mouse-only, so on a tablet use the
+**เลือกไฟล์** button. Everything else — upload progress, the live step list,
+the download — works the same.
+
 ## Other commands
 
 ```bash

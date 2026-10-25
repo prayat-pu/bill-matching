@@ -187,6 +187,7 @@ button.link {
 .run {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin: 22px 0 8px;
 }
@@ -443,6 +444,42 @@ button.link {
 .warning-group h3 span {
   color: var(--muted);
   font-weight: 400;
+}
+
+/* Finger-sized hit areas on touch devices; 34px is too small to tap. */
+@media (pointer: coarse) {
+  .button,
+  button,
+  select,
+  .download {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  button.link {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  main {
+    padding: 20px 16px 48px;
+  }
+
+  header h1 {
+    font-size: 1.35rem;
+  }
+
+  .run button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .download {
+    display: block;
+    text-align: center;
+  }
 }
 
 .warning-group ul {

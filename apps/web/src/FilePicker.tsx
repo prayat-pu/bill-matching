@@ -47,7 +47,7 @@ export function FilePicker({ title, hint, accept, files, disabled, multiple = fa
           ))}
         </ul>
       ) : (
-        <p className="empty">ลากไฟล์มาวาง หรือเลือกไฟล์</p>
+        <p className="empty">แตะปุ่ม "เลือกไฟล์" หรือลากไฟล์มาวาง</p>
       )}
 
       <div className="actions">

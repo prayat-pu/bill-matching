@@ -5,6 +5,10 @@ import { FilePicker } from "./FilePicker.tsx";
 import { Progress, Uploading } from "./Progress.tsx";
 import { Result } from "./Result.tsx";
 
+/** iOS greys out .xlsx files unless the media type is offered as well. */
+const XLSX_ACCEPT =
+  ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 export function App() {
   const [company, setCompany] = useState<Company>("44 Residence");
   const [receipts, setReceipts] = useState<File[]>([]);
@@ -85,7 +89,7 @@ export function App() {
         <FilePicker
           title="2 · รายงานบัญชี (.xlsx)"
           hint="หัวตารางอยู่แถวที่ 5"
-          accept=".xlsx"
+          accept={XLSX_ACCEPT}
           files={report}
           disabled={running}
           onChange={setReport}
@@ -93,7 +97,7 @@ export function App() {
         <FilePicker
           title="3 · Statement ธนาคาร (.xlsx)"
           hint="หัวตารางอยู่แถวที่ 8"
-          accept=".xlsx"
+          accept={XLSX_ACCEPT}
           files={statement}
           disabled={running}
           onChange={setStatement}
