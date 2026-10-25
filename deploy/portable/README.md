@@ -20,6 +20,17 @@ stale until the machine is rebooted. This one cannot, because it never touches
 It is the same idea as a Python `venv`, for Node. Your Python is only used to
 *run the installer* — the app itself is TypeScript on Node.
 
+## Getting the code without git
+
+No git on the machine? You do not need it.
+
+1. Open <https://github.com/prayat-pu/bill-matching> in the browser, signed in.
+2. Green **Code** button → **Download ZIP**.
+3. Right-click the zip → **Extract All** → `C:\bill-matching`.
+
+Updating later means downloading the zip again and extracting over the top —
+keep `.env`, `.runtime\` and `vendor\`, they do not come in the zip.
+
 ## Install
 
 **Windows:** double-click `install.cmd`.
@@ -78,6 +89,39 @@ python3 deploy/portable/install.py
 
 Then start it again. `install.py` reuses the Node it already unpacked and only
 redoes `npm ci` and the build.
+
+## "CERTIFICATE_VERIFY_FAILED" while downloading
+
+The office network inspects HTTPS: it re-signs every site with the company's
+own root certificate. Windows and Chrome were given that root, Python was not,
+so the browser works and the installer does not.
+
+The installer already loads the **Windows certificate store**, which fixes most
+machines. If it still fails, it prints the exact URL it wanted and three ways
+out — in order of preference:
+
+1. **Download the file in the browser** (it works there) and drop it in
+   `deploy\portable\offline\`. Re-run the installer; it uses what it finds
+   there instead of the network. See that folder's README for the two files.
+2. **Point Python at the company root.** Ask IT for the `.cer`/`.pem`, then:
+
+   ```
+   set SSL_CERT_FILE=C:\path\to\company-root.pem
+   py -3 deploy\portable\install.py
+   ```
+
+3. **Skip the check**, only if you accept the risk:
+
+   ```
+   py -3 deploy\portable\install.py --insecure
+   ```
+
+   Node is still verified against its published SHA-256 after downloading, so
+   a corrupted or swapped archive is still caught.
+
+If what comes back is not a zip at all — a proxy login page, say — the
+installer says so and prints the size, rather than failing later with a
+confusing "not in the zip".
 
 ## Things worth knowing
 

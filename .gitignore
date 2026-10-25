@@ -32,3 +32,7 @@ Thumbs.db
 .idea/
 tmp/
 .runtime/
+
+# Archives dropped in by hand for an offline install
+deploy/portable/offline/*
+!deploy/portable/offline/README.md

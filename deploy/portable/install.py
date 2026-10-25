@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import ssl
 import urllib.error
 import urllib.request
 import zipfile
@@ -46,6 +47,12 @@ POPPLER_URL = (
 
 IS_WINDOWS = os.name == "nt"
 
+# Set by --insecure. Last resort for a network that re-signs HTTPS with a root
+# this Python will not trust even from the Windows store.
+SKIP_TLS_VERIFY = False
+# Where to look for archives downloaded by hand on another machine.
+OFFLINE_DIR = Path(__file__).resolve().parent / "offline"
+
 
 def say(text: str) -> None:
     print(f"\n=== {text} ===", flush=True)
@@ -59,18 +66,79 @@ class Failed(Exception):
     """Something the user has to fix. Printed plainly, no traceback."""
 
 
+class _SkipChecksum(Exception):
+    """Not an error: the archive came from offline/, so there is nothing to check."""
+
+
 # --------------------------------------------------------------------------
 # downloading
+
+
+def tls_context() -> ssl.SSLContext:
+    """Trust what Windows trusts.
+
+    An office proxy that inspects HTTPS re-signs every certificate with the
+    company's own root. Windows and Chrome have that root; Python's default
+    context may not, which is exactly the
+    "[SSL: CERTIFICATE_VERIFY_FAILED]" people hit while the browser works.
+    So load the machine's own trust store as well.
+    """
+    if SKIP_TLS_VERIFY:
+        context = ssl._create_unverified_context()  # noqa: SLF001 - deliberate, --insecure only
+        return context
+
+    context = ssl.create_default_context()
+    if hasattr(ssl, "enum_certificates"):  # Windows only
+        for store in ("ROOT", "CA"):
+            try:
+                for cert, encoding, trust in ssl.enum_certificates(store):
+                    if encoding == "x509_asn" and (trust is True or trust):
+                        try:
+                            context.load_verify_locations(cadata=cert)
+                        except ssl.SSLError:
+                            continue  # one unusable certificate is not fatal
+            except Exception:  # noqa: BLE001 - the store is a nice-to-have
+                pass
+    return context
+
+
+def open_url(url: str, headers: dict[str, str] | None = None, timeout: int = 120):
+    request = urllib.request.Request(url, headers=headers or {})
+    return urllib.request.urlopen(request, timeout=timeout, context=tls_context())
+
+
+def offline_copy(patterns: list[str]) -> Path | None:
+    """An archive the user downloaded by hand and dropped in offline/."""
+    if not OFFLINE_DIR.is_dir():
+        return None
+    for pattern in patterns:
+        for candidate in sorted(OFFLINE_DIR.glob(pattern)):
+            if candidate.is_file():
+                return candidate
+    return None
 
 
 def download(url: str, target: Path, label: str) -> None:
     ok(f"downloading {label} ...")
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with urllib.request.urlopen(url, timeout=120) as response, target.open("wb") as out:
+        with open_url(url) as response, target.open("wb") as out:
             shutil.copyfileobj(response, out)
-    except (urllib.error.URLError, TimeoutError) as cause:
-        raise Failed(f"could not download {label}: {cause}\n  Check the internet connection.") from cause
+    except (urllib.error.URLError, TimeoutError, ssl.SSLError) as cause:
+        reason = getattr(cause, "reason", cause)
+        hint = ""
+        if "CERTIFICATE_VERIFY_FAILED" in str(reason):
+            hint = (
+                "\n  This network inspects HTTPS and Python does not trust its root"
+                "\n  certificate. Either:"
+                "\n    1. download the file yourself in the browser (it works there):"
+                f"\n         {url}"
+                f"\n       and put it in {OFFLINE_DIR}"
+                "\n    2. or ask IT for the company root .cer and set"
+                "\n         set SSL_CERT_FILE=C:\\path\\to\\company-root.pem"
+                "\n    3. or, only if you accept the risk, run with --insecure"
+            )
+        raise Failed(f"could not download {label}\n  from {url}\n  because: {reason}{hint}") from cause
 
 
 def sha256(path: Path) -> str:
@@ -135,11 +203,21 @@ def install_node() -> None:
     with tempfile.TemporaryDirectory() as temp_name:
         temp = Path(temp_name)
         archive = temp / name
-        download(base + name, archive, f"Node {version} ({name})")
+
+        local = offline_copy([f"node-v*-{'win' if IS_WINDOWS else 'linux'}-*", "node-v*"])
+        if local is not None:
+            ok(f"using {local.name} from offline/")
+            shutil.copy2(local, archive := temp / local.name)
+            name = local.name
+        else:
+            download(base + name, archive, f"Node {version} ({name})")
 
         # The archive is executed, so check it against the published checksum.
         sums = temp / "SHASUMS256.txt"
         try:
+            if local is not None:
+                ok("offline archive: checksum check skipped, you fetched it yourself")
+                raise _SkipChecksum
             download(base + "SHASUMS256.txt", sums, "checksums")
             expected = next(
                 (line.split()[0] for line in sums.read_text().splitlines() if line.endswith(f"  {name}")),
@@ -151,8 +229,9 @@ def install_node() -> None:
                 raise Failed("the downloaded Node archive does not match its published checksum")
             else:
                 ok("checksum OK")
-        except Failed:
-            raise
+        except (Failed, _SkipChecksum):
+            if sys.exc_info()[0] is Failed:
+                raise
         except Exception:  # noqa: BLE001
             ok("could not fetch the checksums; continuing without the check")
 
@@ -211,25 +290,38 @@ def install_poppler() -> None:
             "  It is the one piece this installer cannot put in the project folder on Linux."
         )
 
+    local = offline_copy(["Release-*.zip", "poppler*.zip"])
+
     url = POPPLER_URL.format(v=POPPLER_FALLBACK)
-    try:
-        request = urllib.request.Request(
-            "https://api.github.com/repos/oschwartz10612/poppler-windows/releases/latest",
-            headers={"User-Agent": "bill-matching-installer"},
-        )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            assets = json.load(response).get("assets", [])
-        for asset in assets:
-            if asset["name"].startswith("Release-") and asset["name"].endswith(".zip"):
-                url = asset["browser_download_url"]
-                break
-    except Exception:  # noqa: BLE001
-        ok(f"GitHub's API did not answer; using the pinned build {POPPLER_FALLBACK}")
+    if local is None:
+        try:
+            with open_url(
+                "https://api.github.com/repos/oschwartz10612/poppler-windows/releases/latest",
+                headers={"User-Agent": "bill-matching-installer"},
+                timeout=30,
+            ) as response:
+                assets = json.load(response).get("assets", [])
+            for asset in assets:
+                if asset["name"].startswith("Release-") and asset["name"].endswith(".zip"):
+                    url = asset["browser_download_url"]
+                    break
+        except Exception as cause:  # noqa: BLE001
+            ok(f"GitHub's API did not answer ({cause}); using the pinned build {POPPLER_FALLBACK}")
 
     with tempfile.TemporaryDirectory() as temp_name:
         temp = Path(temp_name)
         archive = temp / "poppler.zip"
-        download(url, archive, "poppler")
+        if local is not None:
+            ok(f"using {local.name} from offline/")
+            shutil.copy2(local, archive)
+        else:
+            download(url, archive, "poppler")
+        if zipfile.is_zipfile(archive) is False:
+            raise Failed(
+                f"what came back from {url} is not a zip ({archive.stat().st_size} bytes)."
+                "\n  A proxy login page, most likely. Download it in the browser and put it in"
+                f"\n  {OFFLINE_DIR}"
+            )
         unpacked = temp / "unpacked"
         with zipfile.ZipFile(archive) as bundle:
             bundle.extractall(unpacked)
@@ -301,9 +393,27 @@ def npm(args: list[str]) -> None:
 
 
 def main() -> int:
+    global SKIP_TLS_VERIFY, OFFLINE_DIR  # noqa: PLW0603 - set once, from the command line
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="report what is missing, change nothing")
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="skip HTTPS certificate checks (last resort on a network that re-signs HTTPS)",
+    )
+    parser.add_argument(
+        "--offline-dir",
+        type=Path,
+        help=f"folder holding archives downloaded by hand (default {OFFLINE_DIR})",
+    )
     args = parser.parse_args()
+
+    SKIP_TLS_VERIFY = args.insecure
+    if args.offline_dir:
+        OFFLINE_DIR = args.offline_dir.resolve()
+    if SKIP_TLS_VERIFY:
+        print("  WARNING: --insecure, certificates are not being checked")
 
     print("Bill Matching - self-contained install")
     print(f"project: {ROOT}")
