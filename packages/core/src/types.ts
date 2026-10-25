@@ -117,5 +117,8 @@ export interface ReconcileCounts {
   readonly matched: number;
   readonly needsReview: number;
   readonly missingBill: number;
+  readonly overpaid: number;
+  readonly underpaid: number;
+  readonly cancelled: number;
   readonly withNotes: number;
 }

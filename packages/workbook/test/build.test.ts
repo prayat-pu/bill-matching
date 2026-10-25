@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import {
   STATUS,
+  STATUS_OPTIONS,
   loadReportFile,
   loadStatementFile,
   parseReceiptRecords,
@@ -242,13 +243,17 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
       expect(heading).toContain("44 Residence");
     });
 
-    it("offers ยกเลิกบิล in the dropdown, with its own color rule", () => {
+    it("offers all six statuses in the dropdown, each with its own color rule", () => {
       const cell = sheet1.getRow(report.sheet.headerRow + 1).getCell("C");
-      expect(cell.dataValidation?.formulae?.[0]).toContain(STATUS.cancelled);
       const formats = (sheet1 as unknown as { conditionalFormattings: { rules: { formulae?: string[] }[] }[] })
         .conditionalFormattings;
       const formulae = formats.flatMap((f) => f.rules.flatMap((r) => r.formulae ?? []));
-      expect(formulae).toContain(`"${STATUS.cancelled}"`);
+
+      for (const status of STATUS_OPTIONS) {
+        expect(cell.dataValidation?.formulae?.[0]).toContain(status);
+        expect(formulae).toContain(`"${status}"`);
+      }
+      expect(STATUS_OPTIONS).toHaveLength(6);
     });
 
     it("covers every document number - the seven rows equal the whole column", () => {
@@ -277,6 +282,19 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
     const row = sheet2.getRow(matched.sourceRow);
     expect(row.getCell(2).value).toBe(matched.billId);
     expect(row.getCell(4).value).toBe("749.00");
+  });
+
+  it("flags a bill_id whose line still needs a human", () => {
+    const lastDataRow = report.sheet.headerRow + result.lines.length;
+    const formats = (sheet2 as unknown as { conditionalFormattings: { ref: string; rules: { formulae?: string[] }[] }[] })
+      .conditionalFormattings;
+    const rule = formats.flatMap((f) => f.rules.map((r) => ({ ref: f.ref, formula: r.formulae?.[0] })))[0]!;
+
+    expect(rule.ref).toBe(`B${statement.sheet.headerRow + 1}:B${statement.sheet.headerRow + statement.sheet.raw.size}`);
+    // Looks the status up on sheet 1, so fixing it there clears the highlight.
+    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$E$${report.sheet.headerRow + 1}:$E$${lastDataRow}`);
+    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$C$${report.sheet.headerRow + 1}:$C$${lastDataRow}`);
+    expect(rule.formula).toContain(STATUS.needsReview);
   });
 
   it("keeps every statement row, including withdrawals and the footer", () => {

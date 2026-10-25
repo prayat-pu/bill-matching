@@ -384,9 +384,25 @@ button.link {
   background: var(--bad-bg);
   color: var(--bad-ink);
 }
+/* Same colors the workbook paints these statuses with. */
+.tile.over {
+  background: #dce9ff;
+  color: #1f4e79;
+}
+.tile.under {
+  background: #e6daf5;
+  color: #5b2c8d;
+}
+.tile.cancelled {
+  background: #ffd9a0;
+  color: #7f4f00;
+}
 .tile.good .label,
 .tile.warn .label,
-.tile.bad .label {
+.tile.bad .label,
+.tile.over .label,
+.tile.under .label,
+.tile.cancelled .label {
   color: inherit;
   opacity: 0.8;
 }

@@ -16,6 +16,9 @@ export function Result({ summary, downloadUrl }: { readonly summary: Summary; re
         <Tile label="ยอดตรง" value={counts.matched} tone="good" />
         <Tile label="ตรวจสอบข้อมูล" value={counts.needsReview} tone="warn" />
         <Tile label="ขาดบิล" value={counts.missingBill} tone="bad" />
+        {counts.overpaid > 0 && <Tile label="โอนเกิน" value={counts.overpaid} tone="over" />}
+        {counts.underpaid > 0 && <Tile label="โอนขาด" value={counts.underpaid} tone="under" />}
+        {counts.cancelled > 0 && <Tile label="ยกเลิกบิล" value={counts.cancelled} tone="cancelled" />}
         <Tile label="มีหมายเหตุ" value={counts.withNotes} tone="plain" />
       </div>
 

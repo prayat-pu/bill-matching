@@ -16,6 +16,8 @@ const STATUS_FILL: Record<Status, string | null> = {
   [STATUS.matched]: "FFC6EFCE", // green
   [STATUS.needsReview]: "FFFFEB9C", // yellow
   [STATUS.missingBill]: "FFFFC7CE", // red
+  [STATUS.overpaid]: "FFDCE9FF", // blue - paid too much
+  [STATUS.underpaid]: "FFE6DAF5", // purple - paid too little
   [STATUS.cancelled]: "FFFFD9A0", // orange
   [STATUS.cash]: null,
   [STATUS.payAtProperty]: null,
@@ -25,8 +27,13 @@ const STATUS_FONT: Record<string, string> = {
   FFC6EFCE: "FF006100",
   FFFFEB9C: "FF9C5700",
   FFFFC7CE: "FF9C0006",
+  FFDCE9FF: "FF1F4E79",
+  FFE6DAF5: "FF5B2C8D",
   FFFFD9A0: "FF7F4F00",
 };
+
+/** The bill_id of a deposit whose line still needs a human. */
+const UNCERTAIN_FILL = "FFFFEB9C";
 
 /** The summary block under the data. */
 const SUMMARY_GAP_ROWS = 1;
@@ -41,6 +48,14 @@ const THIN_BORDER = { style: "thin" as const, color: { argb: "FFBFBFBF" } };
 const MONEY_COLUMN_WIDTH = 15;
 
 type CellValue = string | number | Date | null;
+
+/** Where sheet 1 put the columns sheet 2 has to point at. */
+interface MatchingColumns {
+  readonly idColumn: number;
+  readonly statusColumn: number;
+  readonly firstDataRow: number;
+  readonly lastDataRow: number;
+}
 
 export interface BuildInput {
   readonly result: ReconcileResult;
@@ -64,13 +79,16 @@ export interface BuildInput {
 export async function buildWorkbook(input: BuildInput): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   workbook.created = new Date();
-  buildMatchingSheet(workbook, input);
-  buildStatementSheet(workbook, input);
+  const columns = buildMatchingSheet(workbook, input);
+  buildStatementSheet(workbook, input, columns);
   const data = await workbook.xlsx.writeBuffer();
   return Buffer.from(data);
 }
 
-function buildMatchingSheet(workbook: ExcelJS.Workbook, { result, report, company }: BuildInput): void {
+function buildMatchingSheet(
+  workbook: ExcelJS.Workbook,
+  { result, report, company }: BuildInput,
+): MatchingColumns {
   const sheet = workbook.addWorksheet(SHEET_MATCHING, {
     views: [{ state: "frozen", ySplit: report.headerRow }],
   });
@@ -136,6 +154,13 @@ function buildMatchingSheet(workbook: ExcelJS.Workbook, { result, report, compan
 
   const totalsRow = writeColumnTotals(sheet, { report, firstDataRow, lastDataRow });
   writeSummary(sheet, { result, report, company, firstDataRow, lastDataRow, statusColumn, totalsRow });
+
+  return {
+    idColumn: reportColumn(report, "เลขที่เอกสาร", 2),
+    statusColumn,
+    firstDataRow,
+    lastDataRow,
+  };
 }
 
 interface TotalsInput {
@@ -357,7 +382,11 @@ function absoluteRange(column: number, firstRow: number, lastRow: number): strin
   return `$${letter}$${firstRow}:$${letter}$${lastRow}`;
 }
 
-function buildStatementSheet(workbook: ExcelJS.Workbook, { result, statement }: BuildInput): void {
+function buildStatementSheet(
+  workbook: ExcelJS.Workbook,
+  { result, statement }: BuildInput,
+  matching: MatchingColumns,
+): void {
   const sheet = workbook.addWorksheet(SHEET_STATEMENT, {
     views: [{ state: "frozen", ySplit: statement.headerRow }],
   });
@@ -379,9 +408,39 @@ function buildStatementSheet(workbook: ExcelJS.Workbook, { result, statement }: 
 
   for (const range of shiftMerges(statement.merges, 2, 1)) sheet.mergeCells(range);
 
+  // A deposit whose bill still needs a human turns yellow here too. It is an
+  // expression rule, not a painted cell, so fixing the status on sheet 1
+  // clears the highlight without re-running the app.
+  const firstRow = statement.headerRow + 1;
+  const lastRow = statement.headerRow + statement.raw.size;
+  if (lastRow >= firstRow) {
+    const ids = sheetOneRange(matching.idColumn, matching);
+    const statuses = sheetOneRange(matching.statusColumn, matching);
+    sheet.addConditionalFormatting({
+      ref: `B${firstRow}:B${lastRow}`,
+      rules: [
+        {
+          type: "expression",
+          priority: 1,
+          formulae: [`AND($B${firstRow}<>"",COUNTIFS(${ids},$B${firstRow},${statuses},"${STATUS.needsReview}")>0)`],
+          style: {
+            fill: { type: "pattern", pattern: "solid", fgColor: { argb: UNCERTAIN_FILL } },
+            font: { color: { argb: STATUS_FONT[UNCERTAIN_FILL] ?? "FF000000" } },
+          },
+        },
+      ],
+    });
+  }
+
   sheet.getColumn(1).width = 20;
   sheet.getColumn(2).width = 20;
   sheet.getColumn(7).width = 46;
+}
+
+/** An absolute range on sheet 1, for a formula living on sheet 2. */
+function sheetOneRange(column: number, matching: MatchingColumns): string {
+  const letter = columnLetter(column);
+  return `'${SHEET_MATCHING}'!$${letter}$${matching.firstDataRow}:$${letter}$${matching.lastDataRow}`;
 }
 
 /** Put `added` into `values` at the 1-based column `INSERT_AT`. */

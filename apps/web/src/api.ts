@@ -19,6 +19,9 @@ export interface Counts {
   matched: number;
   needsReview: number;
   missingBill: number;
+  overpaid: number;
+  underpaid: number;
+  cancelled: number;
   withNotes: number;
 }
 

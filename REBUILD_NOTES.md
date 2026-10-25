@@ -285,7 +285,8 @@ Decisions taken during the rebuild that override the notes above.
 |---|---|---|
 | §3 step 1: join receipts on `(date, id)` | joins on `id` alone | a receipt whose printed date disagrees with the report still finds its line |
 | §3 step 2: ±1 minute (code) / ±2 (comment) | **±2 minutes** | staff round the handwritten time; ±2 matched 20/20 on the May 2026 scan |
-| §3: six statuses | three the engine sets (`ยอดตรง`, `ตรวจสอบข้อมูล`, `ขาดบิล`) plus `ยกเลิกบิล`, which only the accountant picks | 44 Residence has no cash or ZUZU receipts; §3 step 3 and the channel split in §4 are not built yet |
+| §3: six statuses | five the engine sets (`ยอดตรง`, `ตรวจสอบข้อมูล`, `ขาดบิล`, `โอนเกิน`, `โอนขาด`) plus `ยกเลิกบิล` from §2a's `สถานะ` rule, which the accountant can also pick | 44 Residence has no cash or ZUZU receipts, so §3 step 3 and the channel split in §4 are not built yet |
+| §4: `โอนขาด` / `โอนเกิน` are **payment-channel columns**, filled from the receipt's free-text `payment_info` | they are **statuses**, computed from the deposit against `รวมสุทธิ`, and only when the statement names the customer | the accountant wants to see who paid the wrong amount; the channel columns remain unbuilt, and must not be wired to these statuses |
 | §3: sort `ขาดบิล` to the bottom | keeps the report's own row order | sheet 1 has to look like the file that was uploaded |
 | §4: prefix × channel matrix | prefix subtotals only, lined up under `รวมสุทธิ`, plus a `รวม` row over every money column | the channel columns wait for the other companies |
 | §5: `gemini-3.1-flash-lite` | `gemini-3.8-flash` | the lite model read a payment time of 14:42 as 14:12 and lost the deposit |

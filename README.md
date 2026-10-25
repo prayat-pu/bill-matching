@@ -19,7 +19,8 @@ Rebuilt from the Python/Streamlit tool described in `REBUILD_NOTES.md`.
    - **`Matching Report`** - the accounting report as uploaded, with `time`,
      `match_bill_status` and `note` inserted as columns B, C and D. The status
      is a dropdown - `ยอดตรง` green, `ตรวจสอบข้อมูล` yellow, `ขาดบิล` red,
-     `ยกเลิกบิล` orange - colored by rule, so it recolors when you re-pick.
+     `โอนเกิน` blue, `โอนขาด` purple, `ยกเลิกบิล` orange - colored by rule, so
+     it recolors when you re-pick.
      Straight under the data, a `รวม` row `=SUM`s every money column (the
      meter-reading columns are left alone). Then one blank row, then a summary
      block lined up under `รวมสุทธิ`: one `SUMIF` per charge type on the
@@ -27,10 +28,27 @@ Rebuilt from the Python/Streamlit tool described in `REBUILD_NOTES.md`.
      in each pattern (`RA2026*`) is read from the document numbers in the
      sheet, and a report straddling a year end totals both years.
    - **`add-statement`** - the bank statement as uploaded, with `bill_id` as
-     column B.
+     column B. A `bill_id` whose line is still `ตรวจสอบข้อมูล` is highlighted
+     yellow, by rule, so clearing the status on sheet 1 clears the highlight.
 
-`ยกเลิกบิล` is the one status the app never sets by itself: mark a row with it
-and the cancelled line and `ยอดสุทธิ` update inside Excel, with no re-run.
+### The statuses
+
+| Status | Set when |
+|---|---|
+| `ยอดตรง` | a deposit inside the window matches `รวมสุทธิ` exactly |
+| `โอนเกิน` | the statement **names this customer** and they sent more |
+| `โอนขาด` | the statement **names this customer** and they sent less |
+| `ตรวจสอบข้อมูล` | no deposit in the window, or one was found but nothing except the clock ties it to this bill |
+| `ขาดบิล` | the report line has no receipt |
+| `ยกเลิกบิล` | the report's own `สถานะ` column contains `ยกเลิก` — or the accountant picks it |
+
+Over- and under-payment are only claimed when the payer is named. A deposit
+found by time alone could be another guest's, so the app reports what it found
+and leaves the judgement to a person.
+
+A cancelled bill never takes a deposit, and its `รวมสุทธิ` is still counted in
+the summary's charge-type row and in `ยอดรวม`; it leaves once, through the
+`ยกเลิกบิล` line, which `ยอดสุทธิ` subtracts.
 
 Notes written into the `note` column:
 
@@ -38,6 +56,14 @@ Notes written into the `note` column:
 |---|---|
 | `ยอดเงินในบิลกับยอดเงินสุทธิไม่สอดคล้องกัน` | the receipt's own total disagrees with `รวมสุทธิ` |
 | `ยอดเงินตรงแต่ชื่อผู้โอนไม่ตรง` | right amount, but the transfer is in another name (often a company) |
+| `มีใบเสร็จมากกว่าหนึ่งใบใช้เลขที่นี้ …` | two receipts claimed one document number |
+| `โอนเกิน 51.00 บาท (รับ 800.00 / ควรได้ 749.00)` | how far over the named payer was |
+| `โอนขาด 49.00 บาท (รับ 700.00 / ควรได้ 749.00)` | how far under |
+| `พบเงินเข้า 800.00 บาท เวลา 09:25 ใกล้เคียงกัน แต่ยอดและชื่อไม่ตรง` | a deposit was near in time only — no difference is claimed |
+| `ยกเลิกตามสถานะในรายงานบัญชี` | the engine cancelled it from the report, not a person |
+
+Money is held as integer satang throughout, so the `.25` and `.75` amounts are
+exact; baht appear only when a number is printed.
 
 ## Requirements
 

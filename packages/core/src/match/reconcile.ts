@@ -1,5 +1,14 @@
 import { amountsAgree } from "../money.ts";
-import { NOTE, STATUS, classifyChannel, deriveYear, deriveYears } from "../domain.ts";
+import {
+  NOTE,
+  STATUS,
+  classifyChannel,
+  deriveYear,
+  deriveYears,
+  isCancelledReportStatus,
+  nearbyDepositNote,
+  transferDifferenceNote,
+} from "../domain.ts";
 import { detailNamesCustomer, hasPayer } from "../names.ts";
 import type {
   AnnotatedStatementRow,
@@ -54,7 +63,11 @@ export function reconcile(input: ReconcileInput, options: ReconcileOptions = {})
 
   // Step 2 - give each line with a receipt one bank deposit.
   const billIdByStatement = new Map<number, string>();
-  const openLines = draft.flatMap((line, index) => (line.hasReceipt ? [index] : []));
+  // A cancelled bill never takes a deposit: its money is not owed, and a
+  // deposit it swallowed would be stolen from a live bill.
+  const openLines = draft.flatMap((line, index) =>
+    line.hasReceipt && line.status !== STATUS.cancelled ? [index] : [],
+  );
 
   const available = new Set(
     input.statement.filter((row) => row.datetime !== null).map((row) => row.index),
@@ -81,8 +94,17 @@ export function reconcile(input: ReconcileInput, options: ReconcileOptions = {})
     billIdByStatement.set(candidate.statementIndex, line.id);
 
     if (!candidate.amountMatch) {
-      // The deposit is the best one in the window but it is for another sum.
-      line.status = STATUS.needsReview;
+      if (candidate.nameMatch) {
+        // The statement names this customer, so the money is theirs and the
+        // difference is a real over- or under-payment.
+        line.notes.push(transferDifferenceNote(row.amount, line.totalPaymentDue));
+        line.status = row.amount > line.totalPaymentDue ? STATUS.overpaid : STATUS.underpaid;
+      } else {
+        // Nothing but the clock ties this deposit to this bill. On a busy day
+        // another guest's transfer lands seconds away, so claim nothing.
+        line.notes.push(nearbyDepositNote(row.amount, formatTime(row.datetime ?? line.datetime)));
+        line.status = STATUS.needsReview;
+      }
       continue;
     }
     if (!candidate.nameMatch && candidate.payerNamed) {
@@ -147,6 +169,9 @@ function makeDraft(
   duplicated: boolean,
 ): DraftLine {
   const notes: string[] = [];
+  // REBUILD_NOTES §2a: the report's own สถานะ column marks a cancelled bill.
+  const cancelled = isCancelledReportStatus(line.reportStatus);
+  if (cancelled) notes.push(NOTE.cancelledByReport);
   // Two receipts claiming one document number means one id was misread. The
   // line must not come out green on the strength of a guess.
   if (receipt !== null && duplicated) notes.push(NOTE.duplicateReceipt);
@@ -170,8 +195,9 @@ function makeDraft(
     hasReceipt: receipt !== null,
     sourceRow: line.sourceRow,
     notes,
-    status:
-      receipt === null
+    status: cancelled
+      ? STATUS.cancelled
+      : receipt === null
         ? STATUS.missingBill
         : amountDisagrees || duplicated
           ? STATUS.needsReview
@@ -290,6 +316,9 @@ function countLines(lines: readonly MatchedLine[]): ReconcileCounts {
     matched: is(STATUS.matched),
     needsReview: is(STATUS.needsReview),
     missingBill: is(STATUS.missingBill),
+    overpaid: is(STATUS.overpaid),
+    underpaid: is(STATUS.underpaid),
+    cancelled: is(STATUS.cancelled),
     withNotes: lines.filter((l) => l.notes.length > 0).length,
   };
 }

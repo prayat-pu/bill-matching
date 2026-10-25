@@ -3,6 +3,8 @@
  * in the workbook. Do not translate or "tidy" them.
  */
 
+import { toBaht, type Satang } from "./money.ts";
+
 export const COMPANIES = ["44 Residence", "44 House", "44 Room", "44 Home"] as const;
 export type Company = (typeof COMPANIES)[number];
 
@@ -10,6 +12,10 @@ export const STATUS = {
   matched: "ยอดตรง",
   needsReview: "ตรวจสอบข้อมูล",
   missingBill: "ขาดบิล",
+  /** A named payer sent more than the bill. */
+  overpaid: "โอนเกิน",
+  /** A named payer sent less than the bill. */
+  underpaid: "โอนขาด",
   cancelled: "ยกเลิกบิล",
   cash: "เงินสด",
   payAtProperty: "zuzuจ่าย ณ ที่พัก",
@@ -17,15 +23,17 @@ export const STATUS = {
 export type Status = (typeof STATUS)[keyof typeof STATUS];
 
 /**
- * The values offered by the status dropdown in the workbook. The engine never
- * produces ยกเลิกบิล - the accountant picks it by hand, and the summary block's
- * cancelled line and net total follow. Cash and pay-at-property stay in STATUS
- * for when 44 Room and 44 Home are onboarded.
+ * The values offered by the status dropdown in the workbook. ยกเลิกบิล is set
+ * by the engine when the report says so, and can also be picked by hand; the
+ * summary block's cancelled line and net total follow either way. Cash and
+ * pay-at-property stay in STATUS for when 44 Room and 44 Home are onboarded.
  */
 export const STATUS_OPTIONS: readonly Status[] = [
   STATUS.matched,
   STATUS.needsReview,
   STATUS.missingBill,
+  STATUS.overpaid,
+  STATUS.underpaid,
   STATUS.cancelled,
 ];
 
@@ -37,7 +45,37 @@ export const NOTE = {
   payerNameMismatch: "ยอดเงินตรงแต่ชื่อผู้โอนไม่ตรง",
   /** Two receipts carried this document number - the model misread one of them. */
   duplicateReceipt: "มีใบเสร็จมากกว่าหนึ่งใบใช้เลขที่นี้ ตรวจสอบการอ่านเลขที่เอกสาร",
+  /** The engine set ยกเลิกบิล from the report, not a person. */
+  cancelledByReport: "ยกเลิกตามสถานะในรายงานบัญชี",
 } as const;
+
+/**
+ * "โอนเกิน 51.00 บาท (รับ 800.00 / ควรได้ 749.00)".
+ *
+ * Only written when the statement names the customer, because only then do we
+ * know the money is theirs. Computed in satang; baht appear at the last step.
+ */
+export function transferDifferenceNote(deposit: Satang, due: Satang): string {
+  const difference = deposit - due;
+  const label = difference > 0 ? STATUS.overpaid : STATUS.underpaid;
+  return `${label} ${baht(Math.abs(difference))} บาท (รับ ${baht(deposit)} / ควรได้ ${baht(due)})`;
+}
+
+/**
+ * "พบเงินเข้า 800.00 บาท เวลา 09:25 ใกล้เคียงกัน แต่ยอดและชื่อไม่ตรง".
+ *
+ * The only link to this bill is the clock, so no payment difference is
+ * claimed - the accountant is told what was found and decides.
+ */
+export function nearbyDepositNote(deposit: Satang, time: string): string {
+  return `พบเงินเข้า ${baht(deposit)} บาท เวลา ${time} ใกล้เคียงกัน แต่ยอดและชื่อไม่ตรง`;
+}
+
+const BAHT = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function baht(amount: Satang): string {
+  return BAHT.format(toBaht(amount));
+}
 
 /** Payment channel columns, in workbook order. */
 export const CHANNELS = [

@@ -140,15 +140,51 @@ describe("step 3 - the bank deposit", () => {
     expect(result.lines[0]!.notes).toEqual([NOTE.payerNameMismatch]);
   });
 
-  it("asks for review when the deposit is for another sum", () => {
+  it("calls a named payer who sent too much โอนเกิน, with the difference", () => {
+    const result = reconcile({
+      company,
+      report,
+      statement: [statementRow(0, { date: "03/12/2026", time: "09:25", amount: 80000, detail: payer })],
+      receipts,
+    });
+    expect(result.lines[0]!.status).toBe(STATUS.overpaid);
+    expect(result.lines[0]!.notes).toEqual(["โอนเกิน 51.00 บาท (รับ 800.00 / ควรได้ 749.00)"]);
+    expect(result.lines[0]!.statementAmount).toBe(80000);
+  });
+
+  it("calls a named payer who sent too little โอนขาด", () => {
     const result = reconcile({
       company,
       report,
       statement: [statementRow(0, { date: "03/12/2026", time: "09:25", amount: 70000, detail: payer })],
       receipts,
     });
+    expect(result.lines[0]!.status).toBe(STATUS.underpaid);
+    expect(result.lines[0]!.notes).toEqual(["โอนขาด 49.00 บาท (รับ 700.00 / ควรได้ 749.00)"]);
+  });
+
+  it("claims nothing when only the clock ties the deposit to the bill", () => {
+    const result = reconcile({
+      company,
+      report,
+      statement: [
+        statementRow(0, {
+          date: "03/12/2026",
+          time: "09:25",
+          amount: 80000,
+          detail: "รับโอนเงิน\nSCB นาย คนอื่น ไม่รู้จัก\nบัญชีต้นทาง : X1",
+        }),
+      ],
+      receipts,
+    });
+    // Another guest's transfer can land seconds away; calling it โอนเกิน
+    // would be inventing a fact.
     expect(result.lines[0]!.status).toBe(STATUS.needsReview);
-    expect(result.lines[0]!.statementAmount).toBe(70000);
+    expect(result.lines[0]!.notes).toEqual([
+      "พบเงินเข้า 800.00 บาท เวลา 09:25 ใกล้เคียงกัน แต่ยอดและชื่อไม่ตรง",
+    ]);
+    // It is still tagged in sheet 2 - the workbook highlights it yellow.
+    expect(result.statement[0]!.billId).toBe("RCD2026-1");
   });
 
   it("looks two minutes either way, and no further", () => {
@@ -214,6 +250,52 @@ describe("step 3 - the bank deposit", () => {
   });
 });
 
+describe("step 4 - a bill the report itself cancelled", () => {
+  const cancelled = reportLine({
+    id: "RCD2026-1",
+    date: "03/12/2026",
+    totalPaymentDue: 74900,
+    customerName: "สิริวิชญ์ ดีคล้าย",
+    reportStatus: "ยกเลิกชำระ",
+  });
+
+  it("marks it ยกเลิกบิล and says the report said so", () => {
+    const result = reconcile({ company, report: [cancelled], statement: [], receipts: [] });
+    expect(result.lines[0]!.status).toBe(STATUS.cancelled);
+    expect(result.lines[0]!.notes).toEqual([NOTE.cancelledByReport]);
+  });
+
+  it("leaves its deposit free for the bill that really owns it", () => {
+    const live = reportLine({
+      id: "RCD2026-2",
+      date: "03/12/2026",
+      totalPaymentDue: 74900,
+      customerName: "สิริวิชญ์ ดีคล้าย",
+      sourceRow: 7,
+    });
+    const result = reconcile({
+      company,
+      report: [cancelled, live],
+      statement: [
+        statementRow(0, {
+          date: "03/12/2026",
+          time: "09:24",
+          amount: 74900,
+          detail: "รับโอนเงิน\nSCB นาย สิริวิชญ์ ดีคล้าย\nบัญชีต้นทาง : X1",
+        }),
+      ],
+      receipts: [
+        receipt({ id: "RCD2026-1", date: "03/12/2026", time: "09:24" }),
+        receipt({ id: "RCD2026-2", date: "03/12/2026", time: "09:24" }),
+      ],
+    });
+    const byId = new Map(result.lines.map((l) => [l.id, l]));
+    expect(byId.get("RCD2026-1")!.statementIndex).toBeNull();
+    expect(byId.get("RCD2026-2")!.status).toBe(STATUS.matched);
+    expect(result.statement[0]!.billId).toBe("RCD2026-2");
+  });
+});
+
 describe("counts", () => {
   it("counts every status over report lines", () => {
     const result = reconcile({
@@ -235,6 +317,9 @@ describe("counts", () => {
       matched: 1,
       needsReview: 1,
       missingBill: 1,
+      overpaid: 0,
+      underpaid: 0,
+      cancelled: 0,
       withNotes: 1,
     });
     expect(result.year).toBe("2026");
