@@ -58,20 +58,9 @@ cat <<BANNER
      http://localhost:${PORT}
 BANNER
 
-# The office address, so other PCs know what to type. Docker's own bridges
-# (docker0, br-*, veth*) answer to nothing outside this machine, so they are
-# left out - showing them would just send people to a dead link.
-addresses=$(ip -4 -o addr show scope global 2>/dev/null |
-  awk '$2 !~ /^(docker|br-|veth|virbr|tun|tap|lo)/ {split($4,a,"/"); print a[1]}')
-if [ -n "${addresses:-}" ]; then
-  echo
-  echo "   เครื่องอื่นในออฟฟิศ / other computers:"
-  for ip in $addresses; do echo "     http://${ip}:${PORT}"; done
-else
-  echo
-  echo "   เครื่องอื่นในออฟฟิศ / other computers: ask IT for this machine's address,"
-  echo "   then add :${PORT} to it"
-fi
+echo
+echo "   เครื่องอื่นในออฟฟิศ / other computers:"
+"$(dirname "$0")/../lib/addresses.sh" "$PORT"
 
 cat <<'BANNER'
 

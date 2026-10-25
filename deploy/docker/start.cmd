@@ -67,9 +67,7 @@ echo    this computer:
 echo      http://localhost:%PORT%
 echo.
 echo    other computers in the office:
-rem Only real network cards: Docker's own adapters answer to nothing outside.
-powershell -NoProfile -Command ^
-  "$a=Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.InterfaceAlias -notmatch 'Docker|WSL|Loopback|vEthernet' }; if($a){ $a | ForEach-Object { '     http://' + $_.IPAddress + ':%PORT%' } } else { '     ask IT for this computer''s address, then add :%PORT%' }"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%CD%\deploy\lib\addresses.ps1" -Port %PORT%
 echo.
 echo   ========================================================
 echo    to stop: double-click stop.cmd

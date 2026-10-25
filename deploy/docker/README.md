@@ -41,6 +41,36 @@ Only real network cards are listed. Docker's own adapters (`docker0`, `br-*`,
 `vEthernet`, WSL) answer to nothing outside the machine, so printing them would
 just send people to a dead link.
 
+## Which address do the other computers use?
+
+`start` prints the recommended one first:
+
+```
+   other computers:
+     http://192.168.1.50:40000   <-- give this one to the others  (Ethernet)
+     http://10.8.0.2:40000       (VPN, try this if the first does not work)
+```
+
+A Windows PC has more IPv4 addresses than you would think — Docker, WSL,
+Hyper-V, VirtualBox and VPN clients each add one, and none of those reach the
+office. The picker drops those adapters and then ranks what is left:
+`192.168.*` first (the usual office range), then `10.*`, then `172.16-31.*`,
+with `169.254.*` last because a link-local address reaches nothing at all.
+
+Having a default gateway is deliberately **not** the test: a VPN usually owns
+the default route while the office LAN sits on the physical card.
+
+To confirm by hand: on another office PC, the first three numbers should match
+its own address. `ipconfig` on the host shows the same thing — the adapter
+with a "Default Gateway" filled in and an address in the same range as your
+colleagues.
+
+If nothing works from another machine, it is the firewall, not the address:
+
+```
+netsh advfirewall firewall add rule name="Bill Matching" dir=in action=allow protocol=TCP localport=40000
+```
+
 ## Things worth knowing
 
 - **Stopping loses a run in flight.** Nothing is stored between runs by design,

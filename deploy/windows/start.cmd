@@ -14,7 +14,8 @@ set WEB_DIST=%CD%\apps\web\dist
 
 echo Bill Matching is starting on port %PORT%
 echo   this PC:    http://localhost:%PORT%
-powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | ForEach-Object { '  other PCs:  http://' + $_.IPAddress + ':%PORT%' }" 2>nul
+echo   other PCs:
+powershell -NoProfile -ExecutionPolicy Bypass -File "%CD%\deploy\lib\addresses.ps1" -Port %PORT%
 echo.
 node --env-file-if-exists=.env --experimental-strip-types apps\server\src\main.ts
 pause

@@ -25,9 +25,9 @@ cat <<BANNER
      http://localhost:${PORT}
 BANNER
 
-ip -4 -o addr show scope global 2>/dev/null |
-  awk -v p="$PORT" '$2 !~ /^(docker|br-|veth|virbr|tun|tap|lo)/ {split($4,a,"/"); print "     http://" a[1] ":" p}' |
-  { IFS= read -r first || exit 0; echo; echo "   other computers:"; echo "$first"; cat; }
+echo
+echo "   other computers:"
+"$(dirname "$0")/../lib/addresses.sh" "$PORT"
 
 cat <<'BANNER'
 
