@@ -450,4 +450,7 @@ button.link {
   padding-left: 20px;
   font-size: 0.9rem;
   color: var(--muted);
+  /* A busy month can leave dozens of bills to check; keep the panel usable. */
+  max-height: 220px;
+  overflow-y: auto;
 }

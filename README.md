@@ -193,7 +193,9 @@ model has read them.
 ## Known weak spots
 
 - **Which bank checkbox is ticked.** Two Gemini models disagreed on 4 of 20
-  receipts in the sample. The UI lists every receipt the model was unsure about.
+  receipts in the sample. Nothing in the workbook depends on it today, so the
+  UI no longer reports it; `marked_box` and `bank_confidence` are still in the
+  extraction JSON for whoever builds the payment-channel columns.
 - **Thai vs Latin names.** `เตชิต` on the report and `DECHIT` on the transfer
   are the same person, but the name rule cannot see that, so the line passes
   with the name-mismatch note. Same for spelling variants (`อนุพงษ์` /

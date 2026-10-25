@@ -8,7 +8,7 @@ export function Result({ summary, downloadUrl }: { readonly summary: Summary; re
     warnings.rejectedRows.length +
     warnings.receiptsNotInReport.length +
     warnings.duplicateReceiptIds.length +
-    warnings.unsureBank.length;
+    warnings.needsReview.length;
 
   return (
     <section className="result">
@@ -34,12 +34,12 @@ export function Result({ summary, downloadUrl }: { readonly summary: Summary; re
       {warningCount > 0 && (
         <details className="warnings" open>
           <summary>ต้องตรวจด้วยตา ({warningCount})</summary>
+          <WarningList title="ต้องตรวจสอบข้อมูล" items={warnings.needsReview} />
           <WarningList title="อ่านใบเสร็จไม่สำเร็จ" items={warnings.failedPages.map((f) => `หน้า ${f.pages.join(", ")}: ${f.reason}`)} />
           <WarningList title="ใบเสร็จที่ข้อมูลไม่ครบ" items={warnings.rejectedReceipts.map((r) => `${r.source} #${r.row}: ${r.reason}`)} />
           <WarningList title="แถวในไฟล์ที่อ่านไม่ได้" items={warnings.rejectedRows.map((r) => `${r.source} แถว ${r.row}: ${r.reason}`)} />
           <WarningList title="ใบเสร็จที่ไม่มีในรายงาน" items={warnings.receiptsNotInReport} />
           <WarningList title="เลขที่เอกสารซ้ำ (อ่านเลขผิด)" items={warnings.duplicateReceiptIds} />
-          <WarningList title="ไม่มั่นใจว่าติ๊กธนาคารไหน" items={warnings.unsureBank} />
         </details>
       )}
     </section>

@@ -37,7 +37,7 @@ export interface Warnings {
   rejectedRows: RejectedRow[];
   receiptsNotInReport: string[];
   duplicateReceiptIds: string[];
-  unsureBank: string[];
+  needsReview: string[];
 }
 
 export interface Summary {

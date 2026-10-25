@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  STATUS,
   loadReportFile,
   loadStatementFile,
   parseReceiptRecords,
@@ -44,8 +45,8 @@ export interface Warnings {
   readonly receiptsNotInReport: readonly string[];
   /** Document numbers that two receipts claimed - one of them was misread. */
   readonly duplicateReceiptIds: readonly string[];
-  /** Receipts where the model was unsure which bank checkbox was ticked. */
-  readonly unsureBank: readonly string[];
+  /** The bills the accountant has to open: status ตรวจสอบข้อมูล. */
+  readonly needsReview: readonly string[];
 }
 
 export interface JobSummary {
@@ -192,7 +193,7 @@ async function run(job: Job, input: JobInput): Promise<void> {
       rejectedRows: [...report.rejected, ...statement.rejected],
       receiptsNotInReport: result.receiptsNotInReport,
       duplicateReceiptIds: result.duplicateReceiptIds,
-      unsureBank: extractions.flatMap((e) => e.raw.filter((r) => r.bank_confidence === "unsure").map((r) => r.id)),
+      needsReview: result.lines.filter((l) => l.status === STATUS.needsReview).map((l) => l.id),
     },
     workbookName: workbookName(input.company),
   };
