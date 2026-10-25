@@ -34,6 +34,11 @@ Newest first. Dates are when the work landed.
 
 ### Running it
 
+- **Self-contained install** (`deploy/portable`): a Python script unpacks a
+  checksum-verified portable Node and poppler into the project folder, writes
+  `.env`, installs and builds — no administrator rights, nothing added to
+  `PATH`, and **no reboot**, which the MSI-based Windows installer can
+  otherwise demand. Deleting the folder uninstalls everything.
 - **Docker scripts** for people who do not use a terminal: `start`, `stop` and
   `logs` for Windows and Linux. They check Docker is running, ask for the API
   key if `.env` is missing, wait until the app really answers, and print the

@@ -140,6 +140,14 @@ docker build -t bill-matching .
 docker run --rm -p 5174:5174 --env-file .env -e HOST=0.0.0.0 bill-matching
 ```
 
+## Deploy without installing anything
+
+If the machine must not be changed — no administrator rights, no reboot, no
+Node on `PATH` — use [`deploy/portable`](deploy/portable/README.md). A Python
+script unpacks a portable Node and poppler **inside the project folder**, the
+way a `venv` works, and `start.cmd` runs the app from there. Deleting the
+folder uninstalls it.
+
 ## Deploy on Windows
 
 Windows 7 cannot host this - Node 24 needs Windows 10 or newer. Run it on one
@@ -196,6 +204,7 @@ Every package has its own README with the gotchas that live there.
 | [`apps/server`](apps/server/README.md) | Fastify API: upload, progress (SSE), download |
 | [`apps/web`](apps/web/README.md) | React + Vite single page |
 | [`deploy/docker`](deploy/docker/README.md) | start / stop / logs scripts for a host that has Docker |
+| [`deploy/portable`](deploy/portable/README.md) | self-contained install — no admin, no reboot, nothing on PATH |
 | [`deploy/windows`](deploy/windows/README.md) | installer and start scripts for a Windows host without Docker |
 | `raw/` | your own report / statement / receipts — git-ignored |
 | `scripts/` | `dev.ts`, `dry-run.ts` |
