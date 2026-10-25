@@ -186,17 +186,23 @@ skip themselves. Put your own files in `raw/` and they run.
 
 ## Layout
 
+Every package has its own README with the gotchas that live there.
+
 | Path | What |
 |---|---|
-| `packages/core` | parsing, name matching, the reconciliation engine |
-| `packages/extract` | PDF → upright JPEG → Gemini → receipt records |
-| `packages/workbook` | the two-sheet ExcelJS output |
-| `apps/server` | Fastify API: upload, progress (SSE), download |
-| `apps/web` | React + Vite single page |
-| `deploy/docker` | start / stop / logs scripts for a host that has Docker |
-| `deploy/windows` | installer and start scripts for a Windows host without Docker |
+| [`packages/core`](packages/core/README.md) | parsing, name matching, the reconciliation engine |
+| [`packages/extract`](packages/extract/README.md) | PDF → upright JPEG → Gemini → receipt records |
+| [`packages/workbook`](packages/workbook/README.md) | the two-sheet ExcelJS output |
+| [`apps/server`](apps/server/README.md) | Fastify API: upload, progress (SSE), download |
+| [`apps/web`](apps/web/README.md) | React + Vite single page |
+| [`deploy/docker`](deploy/docker/README.md) | start / stop / logs scripts for a host that has Docker |
+| [`deploy/windows`](deploy/windows/README.md) | installer and start scripts for a Windows host without Docker |
 | `raw/` | your own report / statement / receipts — git-ignored |
 | `scripts/` | `dev.ts`, `dry-run.ts` |
+
+Also: [`CHANGELOG.md`](CHANGELOG.md) for what changed and why, and
+[`REBUILD_NOTES.md`](REBUILD_NOTES.md) for the original Python tool's rules —
+its §9 lists every place this rebuild deliberately departs from them.
 
 Nothing is stored between runs. Uploads live in memory, the workbook lives in
 the job for 30 minutes, and the rendered page images are deleted as soon as the
