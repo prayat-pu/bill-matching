@@ -96,8 +96,21 @@ counter, elapsed time and an estimate. Then download the workbook.
 One image: Fastify serves both the API and the built React page, so there is
 nothing else to run.
 
+For the people who use the app day to day, there are three scripts in
+[`deploy/docker/`](deploy/docker/README.md) — they check Docker is running,
+ask for the API key if `.env` is missing, wait until the app really answers,
+and print the addresses to open:
+
+| | Windows | Linux |
+|---|---|---|
+| Start | double-click `start.cmd` | `./deploy/docker/start.sh` |
+| Stop | double-click `stop.cmd` | `./deploy/docker/stop.sh` |
+| Logs | double-click `logs.cmd` | `./deploy/docker/logs.sh` |
+
+By hand it is:
+
 ```bash
-docker compose up -d --build     # http://localhost:5174
+docker compose up -d --build     # http://localhost:40000
 docker compose logs -f
 docker compose down
 ```
@@ -168,7 +181,8 @@ skip themselves. Put your own files in `raw/` and they run.
 | `packages/workbook` | the two-sheet ExcelJS output |
 | `apps/server` | Fastify API: upload, progress (SSE), download |
 | `apps/web` | React + Vite single page |
-| `deploy/windows` | installer and start scripts for a Windows host |
+| `deploy/docker` | start / stop / logs scripts for a host that has Docker |
+| `deploy/windows` | installer and start scripts for a Windows host without Docker |
 | `raw/` | your own report / statement / receipts — git-ignored |
 | `scripts/` | `dev.ts`, `dry-run.ts` |
 

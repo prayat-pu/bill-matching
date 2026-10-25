@@ -1,5 +1,9 @@
 # Deploying on Windows
 
+> **If that PC has Docker Desktop, use [`deploy/docker`](../docker/README.md)
+> instead** — one double-click, nothing to install, no poppler. This page is
+> for a Windows host without Docker.
+
 The app runs on **one Windows 10/11 PC (64-bit)**. Everyone else — including the
 Windows 7 machines — just opens it in a browser. Windows 7 cannot host it: Node
 24 needs Windows 10 or newer, and so does Docker Desktop.
