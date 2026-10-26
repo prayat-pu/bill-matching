@@ -73,71 +73,53 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
     expect(out.worksheets.map((w) => w.name)).toEqual([SHEET_MATCHING, SHEET_STATEMENT]);
   });
 
-  it("inserts the two columns at B and C, before เลขที่เอกสาร", () => {
+  it("inserts the three columns at B, C and D, before เลขที่เอกสาร", () => {
     const header = sheet1.getRow(report.sheet.headerRow).values as unknown[];
     // ExcelJS pads index 0.
     expect(header[1]).toBe("วันที่");
     expect(header[2]).toBe(INSERTED_HEADERS[0]);
     expect(header[3]).toBe(INSERTED_HEADERS[1]);
-    expect(header[4]).toBe("เลขที่เอกสาร");
-    expect(header[5]).toBe("ห้อง");
-  });
-
-  it("writes วันที่ as a real datetime, carrying the receipt's time", () => {
-    const line = result.lines.find((l) => l.id === "RCD202605000002")!;
-    const rowNumber = report.sheet.headerRow + result.lines.indexOf(line) + 1;
-    const cell = sheet1.getRow(rowNumber).getCell("A");
-
-    expect(cell.value).toBeInstanceOf(Date);
-    expect((cell.value as Date).toISOString()).toBe("2026-05-01T09:24:00.000Z");
-    expect(cell.numFmt).toBe("yyyy-mm-dd hh:mm:ss");
-    // Wide enough for "2026-05-01 09:24:00", or Excel shows ###.
-    expect(sheet1.getColumn("A").width ?? 0).toBeGreaterThanOrEqual(20);
-  });
-
-  it("leaves a line with no receipt at midnight", () => {
-    const line = result.lines.find((l) => !l.hasReceipt)!;
-    const rowNumber = report.sheet.headerRow + result.lines.indexOf(line) + 1;
-    const value = sheet1.getRow(rowNumber).getCell("A").value as Date;
-    expect(value.getUTCHours()).toBe(0);
-    expect(value.getUTCMinutes()).toBe(0);
+    expect(header[4]).toBe(INSERTED_HEADERS[2]);
+    expect(header[5]).toBe("เลขที่เอกสาร");
+    expect(header[6]).toBe("ห้อง");
   });
 
   it("merges the heading cells the report merges, shifted right", () => {
     const merges = (sheet1 as unknown as { model: { merges: string[] } }).model.merges;
-    expect(merges.slice(0, 2)).toEqual(["K4:P4", "Q4:Y4"]);
-    expect(sheet1.getCell("K4").value).toBe("มูลค่าสินค้าที่ยกเว้นภาษี");
-    // The repeated copies are gone - L4..P4 now belong to the merge, and the
+    expect(merges.slice(0, 2)).toEqual(["L4:Q4", "R4:Z4"]);
+    expect(sheet1.getCell("L4").value).toBe("มูลค่าสินค้าที่ยกเว้นภาษี");
+    // The repeated copies are gone - M4..Q4 now belong to the merge, and the
     // written file holds the text once (checked in the XML by hand).
-    expect(sheet1.getCell("L4").isMerged).toBe(true);
-    expect(sheet1.getCell("L4").master.address).toBe("K4");
-    expect(sheet1.getCell("P4").master.address).toBe("K4");
-    expect(sheet1.getCell("Q4").master.address).toBe("Q4");
+    expect(sheet1.getCell("M4").isMerged).toBe(true);
+    expect(sheet1.getCell("M4").master.address).toBe("L4");
+    expect(sheet1.getCell("Q4").master.address).toBe("L4");
+    expect(sheet1.getCell("R4").master.address).toBe("R4");
   });
 
   it("keeps one row per report line, in the report's order", () => {
     // data rows, the รวม row, a blank row, then 7 type rows and 3 total rows
     expect(sheet1.rowCount).toBe(report.sheet.headerRow + result.lines.length + 1 + 1 + 10);
     const first = sheet1.getRow(report.sheet.headerRow + 1).values as unknown[];
-    expect(first[4]).toBe(result.lines[0]!.id);
+    expect(first[5]).toBe(result.lines[0]!.id);
   });
 
   it("writes time, status and note on a matched line", () => {
     const line = result.lines.find((l) => l.id === "RCD202605000002")!;
     const rowNumber = report.sheet.headerRow + result.lines.indexOf(line) + 1;
     const row = sheet1.getRow(rowNumber);
-    expect(row.getCell("B").value).toBe(STATUS.matched);
-    expect(row.getCell("C").value).toBe(line.notes.join(" / "));
+    expect(row.getCell("B").value).toBe("09:24");
+    expect(row.getCell("C").value).toBe(STATUS.matched);
+    expect(row.getCell("D").value).toBe(line.notes.join(" / "));
   });
 
   it("marks a line with no receipt as ขาดบิล", () => {
     const line = result.lines.find((l) => !l.hasReceipt)!;
     const rowNumber = report.sheet.headerRow + result.lines.indexOf(line) + 1;
-    expect(sheet1.getRow(rowNumber).getCell("B").value).toBe(STATUS.missingBill);
+    expect(sheet1.getRow(rowNumber).getCell("C").value).toBe(STATUS.missingBill);
   });
 
   it("puts a dropdown on every status cell", () => {
-    const cell = sheet1.getRow(report.sheet.headerRow + 1).getCell("B");
+    const cell = sheet1.getRow(report.sheet.headerRow + 1).getCell("C");
     expect(cell.dataValidation?.type).toBe("list");
     expect(cell.dataValidation?.formulae?.[0]).toContain("ยอดตรง");
     expect(cell.dataValidation?.formulae?.[0]).toContain("ขาดบิล");
@@ -151,7 +133,7 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
     expect(formulae).toContain('"ตรวจสอบข้อมูล"');
     expect(formulae).toContain('"ขาดบิล"');
     // The cell itself carries no fill - the rule paints it.
-    expect(sheet1.getRow(report.sheet.headerRow + 1).getCell("B").fill).toBeUndefined();
+    expect(sheet1.getRow(report.sheet.headerRow + 1).getCell("C").fill).toBeUndefined();
   });
 
   describe("the รวม row under the data", () => {
@@ -160,16 +142,16 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
 
     it("labels itself in the เลขมิเตอร์ไฟฟ้าล่าสุด column", () => {
       // K is เลขมิเตอร์ไฟฟ้าล่าสุด after the three inserted columns.
-      expect(sheet1.getRow(report.sheet.headerRow).getCell("J").value).toBe("เลขมิเตอร์ไฟฟ้าล่าสุด");
-      expect(sheet1.getRow(totalsRow).getCell("J").value).toBe("รวม");
+      expect(sheet1.getRow(report.sheet.headerRow).getCell("K").value).toBe("เลขมิเตอร์ไฟฟ้าล่าสุด");
+      expect(sheet1.getRow(totalsRow).getCell("K").value).toBe("รวม");
     });
 
     it("sums every money column, and no meter column", () => {
       const row = sheet1.getRow(totalsRow);
-      expect((row.getCell("K").value as { formula: string }).formula).toBe(`SUM(K6:K${lastDataRow})`);
-      expect((row.getCell("AB").value as { formula: string }).formula).toBe(`SUM(AB6:AB${lastDataRow})`);
+      expect((row.getCell("L").value as { formula: string }).formula).toBe(`SUM(L6:L${lastDataRow})`);
+      expect((row.getCell("AC").value as { formula: string }).formula).toBe(`SUM(AC6:AC${lastDataRow})`);
       // The meter readings are counters, not money.
-      for (const column of ["G", "H", "I", "J"]) {
+      for (const column of ["H", "I", "J", "K"]) {
         const value = row.getCell(column).value;
         expect(typeof value === "object" && value !== null && "formula" in value).toBe(false);
       }
@@ -180,8 +162,8 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
     const lastDataRow = report.sheet.headerRow + result.lines.length;
     const totalsRow = lastDataRow + 1;
     const top = totalsRow + 2; // one blank row in between
-    const ids = `$D$${report.sheet.headerRow + 1}:$D$${lastDataRow}`;
-    const net = `$AB$${report.sheet.headerRow + 1}:$AB$${lastDataRow}`;
+    const ids = `$E$${report.sheet.headerRow + 1}:$E$${lastDataRow}`;
+    const net = `$AC$${report.sheet.headerRow + 1}:$AC$${lastDataRow}`;
 
     it("leaves exactly one blank row after the รวม row", () => {
       const blank = sheet1.getRow(totalsRow + 1);
@@ -202,30 +184,30 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
       expected.forEach(([label, pattern], index) => {
         const row = sheet1.getRow(top + index);
         // The figures line up under รวมสุทธิ (AC); the labels sit to its left.
-        expect(row.getCell("Z").value).toBe(label);
-        expect(row.getCell("AA").value).toBe(pattern);
-        expect((row.getCell("AB").value as { formula: string }).formula).toBe(
+        expect(row.getCell("AA").value).toBe(label);
+        expect(row.getCell("AB").value).toBe(pattern);
+        expect((row.getCell("AC").value as { formula: string }).formula).toBe(
           `SUMIF(${ids},"${pattern}",${net})`,
         );
-        expect(row.getCell("AB").numFmt).toBe("#,##0.00");
+        expect(row.getCell("AC").numFmt).toBe("#,##0.00");
       });
     });
 
     it("totals the seven rows, subtracts what is marked cancelled", () => {
       const totalRow = top + 7;
-      expect(sheet1.getRow(totalRow).getCell("AA").value).toBe("ยอดรวม");
-      expect((sheet1.getRow(totalRow).getCell("AB").value as { formula: string }).formula).toBe(
-        `SUM(AB${top}:AB${top + 6})`,
+      expect(sheet1.getRow(totalRow).getCell("AB").value).toBe("ยอดรวม");
+      expect((sheet1.getRow(totalRow).getCell("AC").value as { formula: string }).formula).toBe(
+        `SUM(AC${top}:AC${top + 6})`,
       );
 
-      expect(sheet1.getRow(totalRow + 1).getCell("AA").value).toBe(STATUS.cancelled);
-      expect((sheet1.getRow(totalRow + 1).getCell("AB").value as { formula: string }).formula).toBe(
-        `SUMIF($B$${report.sheet.headerRow + 1}:$B$${lastDataRow},"${STATUS.cancelled}",${net})`,
+      expect(sheet1.getRow(totalRow + 1).getCell("AB").value).toBe(STATUS.cancelled);
+      expect((sheet1.getRow(totalRow + 1).getCell("AC").value as { formula: string }).formula).toBe(
+        `SUMIF($C$${report.sheet.headerRow + 1}:$C$${lastDataRow},"${STATUS.cancelled}",${net})`,
       );
 
-      expect(sheet1.getRow(totalRow + 2).getCell("AA").value).toBe("ยอดสุทธิ");
-      expect((sheet1.getRow(totalRow + 2).getCell("AB").value as { formula: string }).formula).toBe(
-        `AB${totalRow}-AB${totalRow + 1}`,
+      expect(sheet1.getRow(totalRow + 2).getCell("AB").value).toBe("ยอดสุทธิ");
+      expect((sheet1.getRow(totalRow + 2).getCell("AC").value as { formula: string }).formula).toBe(
+        `AC${totalRow}-AC${totalRow + 1}`,
       );
     });
 
@@ -241,28 +223,28 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
       await reopened.xlsx.load(straddling as unknown as ArrayBuffer);
       const row = reopened.getWorksheet(SHEET_MATCHING)!.getRow(top);
 
-      expect(row.getCell("AA").value).toBe("RA2026* + RA2027*");
-      expect((row.getCell("AB").value as { formula: string }).formula).toBe(
+      expect(row.getCell("AB").value).toBe("RA2026* + RA2027*");
+      expect((row.getCell("AC").value as { formula: string }).formula).toBe(
         `SUMIF(${ids},"RA2026*",${net})+SUMIF(${ids},"RA2027*",${net})`,
       );
     });
 
     it("widens the columns it writes, so Excel never shows ###", () => {
-      for (const column of ["Y", "Z", "AA", "AB"]) {
+      for (const column of ["Z", "AA", "AB", "AC"]) {
         expect(sheet1.getColumn(column).width ?? 0).toBeGreaterThanOrEqual(15);
       }
       // The รวม row's money columns too.
-      expect(sheet1.getColumn("K").width ?? 0).toBeGreaterThanOrEqual(15);
+      expect(sheet1.getColumn("L").width ?? 0).toBeGreaterThanOrEqual(15);
     });
 
     it("heads the block with the report's own title line and the company", () => {
-      const heading = String(sheet1.getCell(`Y${top}`).value);
+      const heading = String(sheet1.getCell(`Z${top}`).value);
       expect(heading).toContain("รายงานใบเสร็จรับเงิน");
       expect(heading).toContain("44 Residence");
     });
 
     it("offers all six statuses in the dropdown, each with its own color rule", () => {
-      const cell = sheet1.getRow(report.sheet.headerRow + 1).getCell("B");
+      const cell = sheet1.getRow(report.sheet.headerRow + 1).getCell("C");
       const formats = (sheet1 as unknown as { conditionalFormattings: { rules: { formulae?: string[] }[] }[] })
         .conditionalFormattings;
       const formulae = formats.flatMap((f) => f.rules.flatMap((r) => r.formulae ?? []));
@@ -310,8 +292,8 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
 
     expect(rule.ref).toBe(`B${statement.sheet.headerRow + 1}:B${statement.sheet.headerRow + statement.sheet.raw.size}`);
     // Looks the status up on sheet 1, so fixing it there clears the highlight.
-    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$D$${report.sheet.headerRow + 1}:$D$${lastDataRow}`);
-    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$B$${report.sheet.headerRow + 1}:$B$${lastDataRow}`);
+    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$E$${report.sheet.headerRow + 1}:$E$${lastDataRow}`);
+    expect(rule.formula).toContain(`'${SHEET_MATCHING}'!$C$${report.sheet.headerRow + 1}:$C$${lastDataRow}`);
     expect(rule.formula).toContain(STATUS.needsReview);
   });
 

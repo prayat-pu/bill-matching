@@ -6,15 +6,7 @@ export const SHEET_MATCHING = "Matching Report";
 export const SHEET_STATEMENT = "add-statement";
 
 /** The columns added to the accounting report, in order. */
-export const INSERTED_HEADERS = ["match_bill_status", "note"] as const;
-
-/**
- * The receipt's time goes into the report's own วันที่ column, which becomes a
- * real datetime cell rather than a date and a separate text column. ExcelJS
- * writes a Date against UTC, and the engine builds its dates with Date.UTC,
- * so the wall clock survives whatever timezone the machine is in.
- */
-const DATETIME_FORMAT = "yyyy-mm-dd hh:mm:ss";
+export const INSERTED_HEADERS = ["time", "match_bill_status", "note"] as const;
 
 /** They go in front of เลขที่เอกสาร, which is column B in the export. */
 const INSERT_AT = 2;
@@ -107,22 +99,16 @@ function buildMatchingSheet(
   const headerRow = sheet.addRow(insert(toValues(report.header), [...INSERTED_HEADERS]));
   headerRow.font = { bold: true };
 
-  const statusColumn = INSERT_AT;
-  const noteColumn = INSERT_AT + 1;
-  const dateColumn = reportColumn(report, "วันที่", 1);
+  const timeColumn = INSERT_AT;
+  const statusColumn = INSERT_AT + 1;
+  const noteColumn = INSERT_AT + 2;
 
   // One output row per report line, in the report's own order.
   for (const line of result.lines) {
     const original = toValues(report.raw.get(line.sourceRow) ?? []);
     // Pad so the report's own columns always land in the same place.
     while (original.length < report.header.length) original.push(null);
-    const row = sheet.addRow(insert(original, [line.status, line.notes.join(" / ")]));
-
-    // วันที่ carries the time of day now: the report's date with the receipt's
-    // handwritten time, or midnight when there is no receipt.
-    const date = row.getCell(dateColumn);
-    date.value = line.datetime;
-    date.numFmt = DATETIME_FORMAT;
+    const row = sheet.addRow(insert(original, [line.time, line.status, line.notes.join(" / ")]));
 
     row.getCell(statusColumn).dataValidation = {
       type: "list",
@@ -132,6 +118,7 @@ function buildMatchingSheet(
       errorTitle: "สถานะไม่ถูกต้อง",
       error: `เลือกได้เฉพาะ ${STATUS_OPTIONS.join(" / ")}`,
     };
+    row.getCell(timeColumn).alignment = { horizontal: "center" };
     row.getCell(noteColumn).alignment = { wrapText: true, vertical: "top" };
   }
 
@@ -161,8 +148,7 @@ function buildMatchingSheet(
     });
   }
 
-  // "2026-05-01 09:24:00" needs the room, or Excel shows ###.
-  widen(sheet, dateColumn, 20);
+  sheet.getColumn(timeColumn).width = 8;
   sheet.getColumn(statusColumn).width = 18;
   sheet.getColumn(noteColumn).width = 42;
 
