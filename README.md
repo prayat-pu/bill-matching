@@ -31,7 +31,7 @@ Rebuilt from the Python/Streamlit tool described in `REBUILD_NOTES.md`.
      in each pattern (`RA2026*`) is read from the document numbers in the
      sheet, and a report straddling a year end totals both years.
    - **`add-statement`** - the bank statement as uploaded, with `bill_id` as
-     column B and `วันที่/เวลา` as a datetime. A `bill_id` whose line is still `ตรวจสอบข้อมูล` is highlighted
+     column B. A `bill_id` whose line is still `ตรวจสอบข้อมูล` is highlighted
      yellow, by rule, so clearing the status on sheet 1 clears the highlight.
 
 ### The statuses

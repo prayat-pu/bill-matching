@@ -315,23 +315,6 @@ describe.skipIf(!hasRaw)("the workbook built from the real May 2026 files", asyn
     expect(rule.formula).toContain(STATUS.needsReview);
   });
 
-  it("writes the statement's วันที่/เวลา as a datetime too", () => {
-    // The first deposit in the real file is 01/05/2026 07:58:27.
-    const first = result.statement[0]!;
-    const cell = sheet2.getRow(first.sourceRow).getCell("A");
-    expect(cell.value).toBeInstanceOf(Date);
-    expect((cell.value as Date).toISOString()).toBe("2026-05-01T07:58:27.000Z");
-    expect(cell.numFmt).toBe("yyyy-mm-dd hh:mm:ss");
-    expect(sheet2.getColumn("A").width ?? 0).toBeGreaterThanOrEqual(20);
-  });
-
-  it("leaves the footer rows alone - they hold a label, not a date", () => {
-    const lastRow = statement.sheet.headerRow + statement.sheet.raw.size;
-    const label = sheet2.getRow(lastRow).getCell("A").value;
-    expect(typeof label).toBe("string");
-    expect(String(label)).toContain("เงินรวม");
-  });
-
   it("keeps every statement row, including withdrawals and the footer", () => {
     expect(sheet2.rowCount).toBe(statement.sheet.headerRow + statement.sheet.raw.size);
   });

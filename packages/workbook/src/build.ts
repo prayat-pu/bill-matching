@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { PREFIX_KINDS, STATUS, STATUS_OPTIONS, parseStatementDateTime } from "@bill/core";
+import { PREFIX_KINDS, STATUS, STATUS_OPTIONS } from "@bill/core";
 import type { ReconcileResult, SheetSnapshot, Status } from "@bill/core";
 
 export const SHEET_MATCHING = "Matching Report";
@@ -417,18 +417,7 @@ function buildStatementSheet(
   headerRow.font = { bold: true };
 
   for (const [sourceRow, row] of [...statement.raw].sort((a, b) => a[0] - b[0])) {
-    const written = sheet.addRow(insert(toValues(row), [billIdByRow.get(sourceRow) ?? null]));
-
-    // วันที่/เวลา arrives as "01/05/2026\n07:58:27" - one cell, day-first, with
-    // a newline in the middle. Make it a real datetime, like sheet 1. The
-    // footer rows (ถอนเงินรวม / ฝากเงินรวม) hold a label, not a date, and are
-    // left exactly as they came.
-    const parsed = parseStatementDateTime(row[0]);
-    if (parsed !== null) {
-      const cell = written.getCell(1);
-      cell.value = parsed;
-      cell.numFmt = DATETIME_FORMAT;
-    }
+    sheet.addRow(insert(toValues(row), [billIdByRow.get(sourceRow) ?? null]));
   }
 
   for (const range of shiftMerges(statement.merges, 2, 1)) sheet.mergeCells(range);
@@ -457,10 +446,9 @@ function buildStatementSheet(
     });
   }
 
-  // "2026-05-01 07:58:27" needs the room, or Excel shows ###.
-  widen(sheet, 1, 20);
-  widen(sheet, 2, 20);
-  widen(sheet, 7, 46);
+  sheet.getColumn(1).width = 20;
+  sheet.getColumn(2).width = 20;
+  sheet.getColumn(7).width = 46;
 }
 
 /** An absolute range on sheet 1, for a formula living on sheet 2. */

@@ -38,14 +38,8 @@ Then, below the data:
 
 ## Sheet 2 — `add-statement`
 
-The bank statement with `bill_id` inserted as column **B**. A `bill_id` whose
-bill is still `ตรวจสอบข้อมูล` is highlighted yellow.
-
-Its `วันที่/เวลา` becomes a **datetime** too, same format as sheet 1. In the
-uploaded file it is one cell holding `01/05/2026` and `07:58:27` with a
-newline between them; here it is a real timestamp you can sort and subtract.
-Rows that hold a label rather than a date — the `ถอนเงินรวม` / `ฝากเงินรวม`
-footer, the brought-forward balance — are left exactly as they came.
+The bank statement, unchanged, with `bill_id` inserted as column **B**. A
+`bill_id` whose bill is still `ตรวจสอบข้อมูล` is highlighted yellow.
 
 ## Everything is a live formula
 
