@@ -16,8 +16,11 @@ Rebuilt from the Python/Streamlit tool described in `REBUILD_NOTES.md`.
    amount, and - where the statement names a payer - the same person. One
    deposit can only pay one bill.
 4. Writes the workbook:
-   - **`Matching Report`** - the accounting report as uploaded, with `time`,
-     `match_bill_status` and `note` inserted as columns B, C and D. The status
+   - **`Matching Report`** - the accounting report as uploaded, with
+     `match_bill_status` and `note` inserted as columns B and C, and the
+     report's own `วันที่` turned into a real **datetime** cell
+     (`2026-05-01 09:24:00`) carrying the receipt's handwritten time — midnight
+     when there is no receipt. The status
      is a dropdown - `ยอดตรง` green, `ตรวจสอบข้อมูล` yellow, `ขาดบิล` red,
      `โอนเกิน` blue, `โอนขาด` purple, `ยกเลิกบิล` orange - colored by rule, so
      it recolors when you re-pick.

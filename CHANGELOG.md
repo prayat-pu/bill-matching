@@ -6,6 +6,9 @@ Newest first. Dates are when the work landed.
 
 ### The workbook
 
+- **`วันที่` is a datetime now** (`2026-05-01 09:24:00`), carrying the
+  receipt's handwritten time. The separate `time` column is gone, so the
+  inserted columns are `match_bill_status` and `note` at B and C.
 - **Summary block** under the data, lined up beneath `รวมสุทธิ`: one `SUMIF`
   per charge type on the document-number prefix, then
   `ยอดรวม` → `ยกเลิกบิล` → `ยอดสุทธิ`. The year comes from the document

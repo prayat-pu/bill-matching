@@ -11,13 +11,21 @@ uploaded sheets kept verbatim, so the output looks like the file that went in.
 
 ## Sheet 1 — `Matching Report`
 
-The accounting report, unchanged, with three columns inserted at **B, C, D**:
+The accounting report with two columns inserted at **B and C**:
 
 | | |
 |---|---|
-| `time` | the handwritten payment time, `HH:mm` |
 | `match_bill_status` | a dropdown of the six statuses |
 | `note` | why, joined with ` / ` |
+
+The report's own **`วันที่` becomes a datetime cell**, formatted
+`yyyy-mm-dd hh:mm:ss`, holding the report's date plus the receipt's
+handwritten time — midnight when the line has no receipt. There is no separate
+time column.
+
+ExcelJS converts a `Date` against UTC and the engine builds its dates with
+`Date.UTC`, so the wall clock written is the wall clock meant, whatever
+timezone the machine is in. Verified on a `+07` host.
 
 Then, below the data:
 
