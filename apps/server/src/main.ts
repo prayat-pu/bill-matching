@@ -11,6 +11,9 @@ const PORT = Number(process.env["PORT"] ?? 5174);
 /** 127.0.0.1 in development; a container has to listen on all interfaces. */
 const HOST = process.env["HOST"] ?? "127.0.0.1";
 const MAX_UPLOAD_BYTES = 80 * 1024 * 1024;
+/** Receipt PDFs per run. Uploads are held in memory, so this bounds RAM use;
+ *  the report and the statement come on top of it. */
+const MAX_RECEIPTS = Number(process.env["MAX_RECEIPTS"] ?? 50);
 /** Where `npm run build` puts the React app. Served only if it is there, so
  *  `npm run dev` still goes through Vite. */
 const WEB_DIST = resolve(process.env["WEB_DIST"] ?? resolve(import.meta.dirname, "../../web/dist"));
@@ -19,7 +22,7 @@ const app = Fastify({ logger: { level: process.env["LOG_LEVEL"] ?? "info" } });
 const jobs = new JobStore();
 
 await app.register(multipart, {
-  limits: { fileSize: MAX_UPLOAD_BYTES, files: 12 },
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_RECEIPTS + 2 },
 });
 
 app.get("/api/health", async () => ({ ok: true, companies: COMPANIES }));
